@@ -7,6 +7,7 @@ import os
 import re
 import time
 import uuid
+from urllib.parse import urlparse
 
 import httpx
 from pydantic import BaseModel, Field, field_validator
@@ -114,7 +115,8 @@ async def live_contribution(agent: str, request: ChatRequest, cards: list[Knowle
     for item in request.history[-6:]:
         if item.get("role") in {"user", "assistant"} and item.get("content"):
             history.append({"role": item["role"], "content": item["content"][:2000]})
-    async with httpx.AsyncClient(timeout=45) as client:
+    local_model = urlparse(base_url).hostname in {"127.0.0.1", "localhost", "::1"}
+    async with httpx.AsyncClient(timeout=120 if local_model else 45, trust_env=not local_model) as client:
         response = await client.post(
             f"{base_url}/chat/completions",
             headers={"Authorization": f"Bearer {api_key}"},

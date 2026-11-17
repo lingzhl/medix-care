@@ -45,7 +45,25 @@ React 工作台 -> FastAPI /api/chat -> Lead 关键词路由
 
 ## 接入模型
 
-将 `.env.example` 中的变量设置在服务端环境。`MEDIX_MODE=live` 时必须配置 `MEDIX_ACCESS_TOKEN`、`MEDIX_MODEL_BASE_URL`、`MEDIX_MODEL_NAME` 和 `MEDIX_MODEL_API_KEY`。模型端点须兼容 `/chat/completions`；仅当模型实际支持 OpenAI-compatible 图像输入时设置 `MEDIX_MODEL_SUPPORTS_VISION=true`。前端设置中输入访问口令，模型密钥只在服务端使用。
+本机已有的 MediX-R1 2B 训练产物是 Qwen3-VL，不是纯文本模型。它位于训练工程之外，不能上传到 GitHub。推荐直接启动本地 2B 工作台（需要已完成前端构建和后端依赖安装）：
+
+```bash
+cd /data1/zhl/medix/medix-care
+MEDIX_2B_GPU_ID=1 scripts/run_local_2b_product.sh
+```
+
+启动后，在 VS Code 转发端口 `8009`，打开工作台；在另一个终端读取本地口令，并填到左下角“工作台设置”中：
+
+```bash
+cd /data1/zhl/medix/medix-care
+cat .local/access_token
+```
+
+口令文件被 `.gitignore` 排除；不要上传或截图分享。脚本默认使用 DAPO `global_step_600` 导出，可以通过 `MEDIX_2B_MODEL_PATH` 指向 SFT merged 导出。按 `Ctrl+C` 停止本地模型和产品服务。两块 GPU 都有其他任务，启动前检查显存；脚本默认将 vLLM 的显存目标限制为 35%，可以通过 `MEDIX_2B_GPU_MEMORY_UTILIZATION` 调整。
+
+也可以单独运行 `scripts/serve_local_2b.sh`，再按 `.env.example` 设置后端环境变量接入自己的 OpenAI-compatible 模型。`MEDIX_MODE=live` 时必须配置 `MEDIX_ACCESS_TOKEN`、`MEDIX_MODEL_BASE_URL`、`MEDIX_MODEL_NAME` 和 `MEDIX_MODEL_API_KEY`；仅当模型支持图像输入时设置 `MEDIX_MODEL_SUPPORTS_VISION=true`。
+
+如果只想使用在线模型，把 `MEDIX_MODEL_BASE_URL`、`MEDIX_MODEL_NAME` 和 `MEDIX_MODEL_API_KEY` 换成你的服务商配置即可。
 
 实时模式中的问题、历史消息及上传图片会发往你配置的模型服务。**不要**把真实患者资料提交到公开实例或未经合规评估的第三方模型。正式上线还需独立完成医疗合规、隐私告知、来源可追溯的知识库、临床评测、访问控制、速率限制、审计与错误监控。当前原型不承诺医疗准确性。
 

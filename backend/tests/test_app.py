@@ -34,8 +34,9 @@ class ModelRequestTests(unittest.IsolatedAsyncioTestCase):
                 return {"choices": [{"message": {"content": "模型回答"}}]}
 
         class FakeClient:
-            def __init__(self, timeout):
+            def __init__(self, timeout, trust_env):
                 self.timeout = timeout
+                sent["trust_env"] = trust_env
 
             async def __aenter__(self):
                 return self
@@ -54,9 +55,37 @@ class ModelRequestTests(unittest.IsolatedAsyncioTestCase):
         with patch.dict(os.environ, env), patch("backend.app.engine.httpx.AsyncClient", FakeClient):
             self.assertEqual(await live_contribution("健康咨询", request, cards), "模型回答")
         self.assertEqual(sent["url"], "https://example.invalid/v1/chat/completions")
+        self.assertTrue(sent["trust_env"])
         self.assertEqual(sent["body"]["model"], "vision-model")
         self.assertEqual(sent["body"]["messages"][-1]["content"][1]["image_url"]["url"], png)
         self.assertIn("示例知识", sent["body"]["messages"][0]["content"])
+
+    async def test_local_model_bypasses_system_proxy(self):
+        requests = []
+
+        class FakeClient:
+            def __init__(self, timeout, trust_env):
+                requests.append((timeout, trust_env))
+
+            async def __aenter__(self):
+                return self
+
+            async def __aexit__(self, *args):
+                pass
+
+            async def post(self, *args, **kwargs):
+                class Response:
+                    def raise_for_status(self):
+                        pass
+
+                    def json(self):
+                        return {"choices": [{"message": {"content": "ok"}}]}
+                return Response()
+
+        env = {"MEDIX_MODEL_BASE_URL": "http://127.0.0.1:8010/v1", "MEDIX_MODEL_NAME": "medix-r1-2b", "MEDIX_MODEL_API_KEY": "test-key"}
+        with patch.dict(os.environ, env), patch("backend.app.engine.httpx.AsyncClient", FakeClient):
+            await live_contribution("健康咨询", ChatRequest(message="健康咨询"), [])
+        self.assertEqual(requests, [(120, False)])
 
 
 class ApiTests(unittest.TestCase):

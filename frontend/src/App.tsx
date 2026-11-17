@@ -39,7 +39,7 @@ function formatTime(timestamp: number) {
 }
 
 function safeMarkdown(text: string) {
-  return text.split('\n').map((line, index) => <span key={index}>{line}<br /></span>)
+  return text.split('\n').map((line, index) => <span key={index}>{line.split(/(\*\*[^*]+\*\*)/g).map((part, partIndex) => part.startsWith('**') && part.endsWith('**') ? <strong key={partIndex}>{part.slice(2, -2)}</strong> : part)}<br /></span>)
 }
 
 export default function App() {
